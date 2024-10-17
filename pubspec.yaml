@@ -49,14 +49,13 @@ dependencies:
   build_runner: ^2.4.11
   json_serializable: ^6.8.0
   flutter_dotenv: ^5.1.0
+  json_annotation: ^4.9.0
 
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^3.0.0
-  json_annotation: ^4.9.0
   mockito: ^5.4.4
-
 
 flutter:
   uses-material-design: true

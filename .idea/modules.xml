@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/front_rubbit.iml" filepath="$PROJECT_DIR$/front_rubbit.iml" />
-      <module fileurl="file://$PROJECT_DIR$/android/front_rubbit_android.iml" filepath="$PROJECT_DIR$/android/front_rubbit_android.iml" />
     </modules>
   </component>
 </project>

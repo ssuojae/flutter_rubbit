@@ -1,8 +1,10 @@
 import 'package:medihabit/signin_page/domain_layer/user_entity.dart';
 
+import '../../util/result.dart';
+
 abstract interface class IUserRepository {
-  Future<void> signInWithGoogle();
-  Future<void> signInWithApple();
-  Future<void> signInWithKakao();
-  Future<UserEntity?> fetchUser(String userId);
+  Future<Result<UserEntity>> signInWithGoogle();
+  Future<Result<UserEntity>> signInWithApple();
+  Future<Result<UserEntity>> signInWithKakao();
+  Future<Result<UserEntity>> fetchUser(String userId);
 }

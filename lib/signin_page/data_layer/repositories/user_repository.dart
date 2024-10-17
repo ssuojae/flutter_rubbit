@@ -1,13 +1,12 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:medihabit/signin_page/domain_layer/user_repository_interface.dart';
+
 import 'package:medihabit/signin_page/domain_layer/user_entity.dart';
+import '../../../util/result.dart';
+import '../../domain_layer/user_repository_interface.dart';
 
 final class UserRepository implements IUserRepository {
   final FirebaseFirestore _firestore;
@@ -16,61 +15,94 @@ final class UserRepository implements IUserRepository {
   UserRepository(this._firestore, this._firebaseAuth);
 
   @override
-  Future<void> signInWithGoogle() async {
-    await GoogleSignIn()
-        .signIn()
-        .then((googleUser) => googleUser!.authentication)
-        .then((googleAuth) => firebase_auth.GoogleAuthProvider.credential(
-              accessToken: googleAuth.accessToken,
-              idToken: googleAuth.idToken,
-            ))
-        .then((credential) => _firebaseAuth.signInWithCredential(credential))
-        .then((firebaseAuthCredential) => _convertToDomainUser(id: firebaseAuthCredential.user!.uid))
-        .then((userEntity) => _storeUserInFirestore(userEntity))
-        .catchError((error) => debugPrint('Google Sign-in Error: $error'));
+  Future<Result<UserEntity>> signInWithGoogle() async {
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        return const Result.failure('Google sign-in canceled.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = firebase_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+
+      final userEntity = _convertToDomainUser(id: userCredential.user!.uid);
+      await _storeUserInFirestore(userEntity);
+
+      return Result.success(userEntity);
+    } catch (error) {
+      return Result.failure('Google Sign-in Error: $error');
+    }
   }
 
   @override
-  Future<void> signInWithApple() async {
-    SignInWithApple.getAppleIDCredential(
-      scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
-    )
-        .then((appleCredential) => firebase_auth.OAuthProvider('apple.com').credential(
-              idToken: appleCredential.identityToken,
-              accessToken: appleCredential.authorizationCode,
-            ))
-        .then((credential) => _firebaseAuth.signInWithCredential(credential))
-        .then((userCredential) => _convertToDomainUser(
-              id: userCredential.user!.uid,
-              name: userCredential.additionalUserInfo!.profile!['givenName'],
-              email: userCredential.user!.email!,
-            ))
-        .then((userEntity) => _storeUserInFirestore(userEntity))
-        .catchError((error) => debugPrint('Apple Sign-in Error: $error'));
+  Future<Result<UserEntity>> signInWithApple() async {
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+      );
+
+      final credential = firebase_auth.OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+
+      final userEntity = _convertToDomainUser(
+        id: userCredential.user!.uid,
+        name: userCredential.additionalUserInfo?.profile?['givenName'] ?? 'N/A',
+        email: userCredential.user?.email ?? 'N/A',
+      );
+      await _storeUserInFirestore(userEntity);
+
+      return Result.success(userEntity);
+    } catch (error) {
+      return Result.failure('Apple Sign-in Error: $error');
+    }
   }
 
   @override
-  Future<void> signInWithKakao() async {
+  Future<Result<UserEntity>> signInWithKakao() async {
     kakao.User? kakaoUser;
+    try {
+      final token = await _fetchKakaoToken();
+      kakaoUser = await kakao.UserApi.instance.me();
+      await _requestKakaoPermissions(token, kakaoUser);
 
-    await _fetchKakaoToken()
-        .then((token) => kakao.UserApi.instance.me().then((user) async {
-              kakaoUser = user;
-              token = await _requestKakaoPermissions(token, kakaoUser!);
+      final credential = firebase_auth.OAuthProvider('oidc.medihabit').credential(
+        accessToken: token.accessToken,
+        idToken: token.idToken,
+      );
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
 
-              return firebase_auth.OAuthProvider('oidc.medihabit').credential(
-                accessToken: token.accessToken,
-                idToken: token.idToken,
-              );
-            }))
-        .then((credential) => _firebaseAuth.signInWithCredential(credential))
-        .then((userCredential) => _convertToDomainUser(
-              id: userCredential.user!.uid,
-              name: kakaoUser!.kakaoAccount!.profile!.nickname!,
-              email: kakaoUser!.kakaoAccount!.email!,
-            ))
-        .then((userEntity) => _storeUserInFirestore(userEntity))
-        .catchError((error) => debugPrint('Kakao Sign-in Error: $error'));
+      final userEntity = _convertToDomainUser(
+        id: userCredential.user!.uid,
+        name: kakaoUser.kakaoAccount?.profile?.nickname ?? 'N/A',
+        email: kakaoUser.kakaoAccount?.email ?? 'N/A',
+      );
+      await _storeUserInFirestore(userEntity);
+
+      return Result.success(userEntity);
+    } catch (error) {
+      return Result.failure('Kakao Sign-in Error: $error');
+    }
+  }
+
+  @override
+  Future<Result<UserEntity>> fetchUser(String userId) async {
+    try {
+      final docSnapshot = await _firestore.collection('users').doc(userId).get();
+      if (docSnapshot.exists && docSnapshot.data() != null) {
+        final user = UserEntity.fromJson(docSnapshot.data()!);
+        return Result.success(user);
+      }
+      return const Result.failure('User not found');
+    } catch (error) {
+      return Result.failure('Fetch User Error: $error');
+    }
   }
 
   UserEntity _convertToDomainUser({
@@ -90,16 +122,13 @@ final class UserRepository implements IUserRepository {
   }
 
   Future<kakao.OAuthToken> _fetchKakaoToken() async {
-    return kakao
-        .isKakaoTalkInstalled()
-        .then<kakao.OAuthToken>(
-          (isInstalled) => isInstalled
-              ? kakao.UserApi.instance.loginWithKakaoTalk()
-              : kakao.UserApi.instance.loginWithKakaoAccount(),
-        )
-        .catchError((error) => error is PlatformException && error.code == 'CANCELED'
-            ? Future<kakao.OAuthToken>.error('Sign-in canceled.')
-            : kakao.UserApi.instance.loginWithKakaoAccount());
+    try {
+      return await (await kakao.isKakaoTalkInstalled()
+          ? kakao.UserApi.instance.loginWithKakaoTalk()
+          : kakao.UserApi.instance.loginWithKakaoAccount());
+    } catch (error) {
+      return Future<kakao.OAuthToken>.error('Kakao Sign-in Error: $error');
+    }
   }
 
   Future<kakao.OAuthToken> _requestKakaoPermissions(kakao.OAuthToken token, kakao.User kakaoUser) async {
@@ -107,30 +136,11 @@ final class UserRepository implements IUserRepository {
       if (kakaoUser.kakaoAccount?.emailNeedsAgreement == true) 'account_email',
       if (kakaoUser.kakaoAccount?.profileNeedsAgreement == true) 'profile',
     ];
-
-    return requiredScopes.isEmpty
-        ? token
-        : await kakao.UserApi.instance
-            .loginWithNewScopes(requiredScopes)
-            .then((newToken) => newToken)
-            .catchError((error) {
-            debugPrint('Kakao Permission Request Error: $error');
-            return token;
-          });
-  }
-
-  @override
-  Future<UserEntity?> fetchUser(String userId) async {
+    if (requiredScopes.isEmpty) token;
     try {
-      final docSnapshot = await _firestore.collection('users').doc(userId).get();
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data();
-        if (data != null) UserEntity.fromJson(data);
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Fetch User Error: $e');
-      return null;
+      return await kakao.UserApi.instance.loginWithNewScopes(requiredScopes);
+    } catch (error) {
+      return token;
     }
   }
 }

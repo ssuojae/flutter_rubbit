@@ -50,6 +50,7 @@ dependencies:
   json_serializable: ^6.8.0
   flutter_dotenv: ^5.1.0
   json_annotation: ^4.9.0
+  flutter_launcher_icons: ^0.14.1
 
   flutter_test:
     sdk: flutter
@@ -62,4 +63,9 @@ flutter:
 
   assets:
     - assets/
-    - .env
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path_android: "assets/icon/android_icon.png"
+  image_path_ios: "assets/icon/ios_icon.png"

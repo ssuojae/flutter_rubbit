@@ -25,3 +25,7 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# Build runner generated files
+*.g.dart
+*.freezed.dart

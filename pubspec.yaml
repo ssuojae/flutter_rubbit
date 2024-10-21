@@ -57,6 +57,7 @@ dependencies:
 
   flutter_lints: ^3.0.0
   mockito: ^5.4.4
+  flutter_native_splash: ^2.4.2
 
 flutter:
   uses-material-design: true
@@ -69,3 +70,6 @@ flutter_icons:
   ios: true
   image_path_android: "assets/icon/android_icon.png"
   image_path_ios: "assets/icon/ios_icon.png"
+
+flutter_native_splash:
+  background_image: assets/splash_rubbit.png

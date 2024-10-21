@@ -4,9 +4,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
-import 'package:medihabit/signin_page/domain_layer/user_entity.dart';
+import 'package:medihabit/signin_page/domain_layer/entities/user_entity.dart';
 import '../../../util/result.dart';
-import '../../domain_layer/user_repository_interface.dart';
+import '../../domain_layer/repositories/user_repository_interface.dart';
 
 final class UserRepository implements IUserRepository {
   final FirebaseFirestore _firestore;

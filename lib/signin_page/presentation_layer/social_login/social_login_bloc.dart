@@ -1,19 +1,19 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:medihabit/signin_page/presentation_layer/signin_event.dart';
-import 'package:medihabit/signin_page/presentation_layer/signin_state.dart';
+import 'package:medihabit/signin_page/presentation_layer/social_login/social_login_event.dart';
+import 'package:medihabit/signin_page/presentation_layer/social_login/social_login_state.dart';
 
-import '../../util/result.dart';
-import '../domain_layer/entities/user_entity.dart';
-import '../domain_layer/repositories/user_repository_interface.dart';
+import '../../../util/result.dart';
+import '../../domain_layer/entities/user_entity.dart';
+import '../../domain_layer/repositories/user_repository_interface.dart';
 
-final class SigninBloc extends Bloc<SigninEvent, SigninState> {
+final class SocialLoginBloc extends Bloc<SocialLoginEvent, SocialLoginState> {
   final IUserRepository userRepository;
 
-  SigninBloc({required this.userRepository}) : super(SigninState.initial()) {
-    on<SigninEvent>(_onLoginRequested);
+  SocialLoginBloc({required this.userRepository}) : super(SocialLoginState.initial()) {
+    on<SocialLoginEvent>(_onLoginRequested);
   }
 
-  Future<void> _onLoginRequested(SigninEvent event, Emitter<SigninState> emit) async {
+  Future<void> _onLoginRequested(SocialLoginEvent event, Emitter<SocialLoginState> emit) async {
     emit(state.copyWith(isLoading: true));
 
     final Result<UserEntity> result = await event.when(
@@ -34,7 +34,7 @@ final class SigninBloc extends Bloc<SigninEvent, SigninState> {
 
   Future<Result<UserEntity>> _signinWithKakao() async => await userRepository.signInWithKakao();
 
-  void _handleLoginSuccess(Emitter<SigninState> emit, UserEntity user) {
+  void _handleLoginSuccess(Emitter<SocialLoginState> emit, UserEntity user) {
     emit(state.copyWith(
       isLoading: false,
       isAuthenticated: true,
@@ -43,7 +43,7 @@ final class SigninBloc extends Bloc<SigninEvent, SigninState> {
     ));
   }
 
-  void _handleLoginError(Emitter<SigninState> emit, String error) {
+  void _handleLoginError(Emitter<SocialLoginState> emit, String error) {
     emit(state.copyWith(
       isLoading: false,
       isAuthenticated: false,
